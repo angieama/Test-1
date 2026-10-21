@@ -1,7 +1,7 @@
 // Optional offline shell for the standalone demo webpage. No payment APIs are cached.
 const BASE = new URL('./', self.location.href);
 const ROOT = BASE.pathname;
-const CACHE = 'lipa-plain-160e34db2736-' + ROOT;
+const CACHE = 'lipa-plain-02f1405c95ce-' + ROOT;
 const ASSETS = ['manifest.webmanifest','icon.svg','icon-192.png','icon-512.png'].map(path => new URL(path, BASE).href);
 async function valid(response) {return response.ok && !response.redirected && (response.headers.get('content-type')||'').includes('text/html') && (await response.clone().text()).includes('name="lipa-app" content="demo"');}
 self.addEventListener('install', event => event.waitUntil((async () => {
