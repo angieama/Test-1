@@ -20,3 +20,14 @@ test('a new fare changes current coverage without editing the paid amount',()=>{
  assert.equal(context.fareCoverage(300,100).people,3);assert.equal(context.fareCoverage(300,150).people,2);
  assert.equal(context.fareCoverage(200,150).people,1);assert.equal(context.fareCoverage(200,150).extra,50);
 });
+test('all amounts includes underpayments and optional amount filters classify them',()=>{
+ for(const amount of [50,80,100,150,200])assert.equal(context.matchesAmount(amount,100,'all'),true);
+ assert.equal(context.matchesAmount(80,100,'under'),true);assert.equal(context.matchesAmount(100,100,'under'),false);
+ assert.equal(context.matchesAmount(100,100,'exact'),true);assert.equal(context.matchesAmount(200,100,'exact'),false);
+ assert.equal(context.matchesAmount(200,100,'over'),true);assert.equal(context.matchesAmount(100,100,'over'),false);
+});
+test('shortfalls use cents and never label above-fare money as missing',()=>{
+ assert.equal(context.paymentShortfall(80,100),20);assert.equal(context.paymentShortfall(50,100),50);
+ assert.equal(context.paymentShortfall(100,100),0);assert.equal(context.paymentShortfall(250,100),0);
+ assert.equal(context.paymentShortfall(0.1,0.3),0.2);assert.equal(context.paymentShortfall(100,150),50);
+});

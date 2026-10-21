@@ -5,7 +5,7 @@ Open **index.html** in a browser. No React, package installation, development se
 ## Features
 
 - Mobile layout, light/dark themes and large tick-off buttons.
-- Active fare controller shows mock payments at or above the current fare, including group payments.
+- All payment amounts are shown by default within the selected time window, including underpayments. A separate Amount paid row filters All amounts, Underpaid, Exact fare or Above fare. The active fare is the comparison reference.
 - Last 15 minutes, 30 minutes, 1 hour and Today (Africa/Nairobi) filters.
 - First-name search. Receipt rows display the first name, transaction code and amount paid in KSh.
 - Permanent tick-off state in the same browser's localStorage.
@@ -29,8 +29,16 @@ Previous React implementation remains available in repository history.
 
 ## Group payments
 
-The feed accepts payments at or above one fare. At a fare of KSh 100, a KSh 200 receipt shows **Covers 2 people**, while KSh 250 shows **Covers 2 people · KSh 50 extra**. Only complete fares count; the merchant must confirm the actual group before ticking off a receipt. Extra money is displayed separately rather than counted as an additional person.
+The feed shows all amounts by default. Choose Above fare to focus on larger payments. At a fare of KSh 100, a KSh 200 receipt shows **Covers 2 people**, while KSh 250 shows **Covers 2 people · KSh 50 extra**. Only complete fares count; the merchant must confirm the actual group before ticking off a receipt. Extra money is displayed separately rather than counted as an additional person.
 
 A group receipt is ticked off once for the whole group. The claim stores the fare, number of full fares and remainder at the time of verification. A later fare change does not rewrite that claim's group count. Old claims created before this change have no recoverable fare snapshot, so their coverage label is omitted.
 
 Overview includes demo controls for 1–4 people and an optional extra amount. Group calculations use integer cents. To check the arithmetic without installing any packages, run `node --test tests/fare-coverage.test.cjs`.
+
+## Underpayments and amount filters
+
+All amounts is the default. Amount paid is a separate row from the time range and claim-status tabs. The amount comparison always uses the current active fare. Summary totals and status counts follow the chosen amount and time filters.
+
+Unclaimed payments below one full fare show the missing amount, for example **Underpaid · KSh 20 short** for KSh 80 paid against a KSh 100 fare. Their tick-off control is disabled so they cannot be accepted as fully paid. Top-up receipt linking is not implemented. Previously claimed receipts stay locked under their original claim, including when the fare later rises above the amount paid.
+
+Overview contains an Add underpaid demo button to create an example 20% below the active fare, rounded to cents. The test suite covers the default all-amounts behavior, under/exact/above comparisons and shortfall arithmetic, in addition to group fare coverage.
