@@ -1,9 +1,9 @@
-node_modules/
 dist/
+node_modules/
 .sites-runtime/
-*.log
 .env
 .env.*
 !.env.example
-.openai/
+*.log
 .DS_Store
+.openai/
