@@ -7,7 +7,7 @@ Open **index.html** in a browser. No React, package installation, development se
 - Mobile layout, light/dark themes and large tick-off buttons.
 - Active fare controller automatically filters matching mock payments.
 - Last 15 minutes, 30 minutes, 1 hour and Today (Africa/Nairobi) filters.
-- First-name search. Receipt rows display only first name and transaction code.
+- First-name search. Receipt rows display the first name, transaction code and amount paid in KSh.
 - Permanent tick-off state in the same browser's localStorage.
 - Overview totals, manual demo payments and optional 18-second demo stream.
 
