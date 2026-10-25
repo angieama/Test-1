@@ -1,0 +1,12 @@
+{
+ "id":"/","name":"Lipa Verify — Merchant Payments","short_name":"Lipa Verify",
+ "description":"Find a payment, confirm the customer and lock the receipt. A merchant verification demo.",
+ "lang":"en-KE","start_url":"/","scope":"/","display":"standalone",
+ "background_color":"#f5f7f5","theme_color":"#0c7045",
+ "categories":["business","utilities"],"prefer_related_applications":false,
+ "icons":[
+  {"src":"/icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+  {"src":"/icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
+  {"src":"/icons/icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
+ ]
+}

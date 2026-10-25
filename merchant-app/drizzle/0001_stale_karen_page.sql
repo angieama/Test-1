@@ -1,0 +1,1 @@
+CREATE INDEX `payments_claimed_received_idx` ON `payments` (`received_at`) WHERE "payments"."claimed_at" IS NOT NULL;
