@@ -7,7 +7,7 @@ import type { Journey, Payment } from "@/lib/payment-types";
 type LedgerResponse = { payments: Payment[]; journeys: Journey[]; serverTime: number };
 
 /** Owns polling, cancellation and clock synchronization independently of the screens. */
-export function usePaymentLedger() {
+export function usePaymentLedger(local = false) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [journeys, setJourneys] = useState<Journey[]>([]);
   const [selectedJourneyId, setSelectedJourneyId] = useState("all");
@@ -59,13 +59,14 @@ export function usePaymentLedger() {
   }, []);
 
   useEffect(() => {
-    const refresh = () => { if (!document.hidden && navigator.onLine) void loadPayments(); };
+    const refresh = () => { if (!document.hidden && (local || navigator.onLine)) void loadPayments(); };
     const connected = () => { setOffline(false); refresh(); };
     const disconnected = () => {
+      if (local) { refresh(); return; }
       sequence.current++; request.current?.abort(); setRefreshing(false);
       setOffline(true); setError("You’re offline. Reconnect to refresh and verify payments.");
     };
-    if (navigator.onLine) void loadPayments(); else disconnected();
+    if (local || navigator.onLine) void loadPayments(); else disconnected();
     const poll = window.setInterval(refresh, 15000);
     const clock = window.setInterval(() => setNow(Date.now() + offset.current), 5000);
     document.addEventListener("visibilitychange", refresh);
@@ -78,7 +79,7 @@ export function usePaymentLedger() {
       window.removeEventListener("online", connected);
       window.removeEventListener("offline", disconnected);
     };
-  }, [loadPayments]);
+  }, [loadPayments, local]);
 
   const selectJourney = useCallback((journeyId: string) => {
     selectedRef.current = journeyId;

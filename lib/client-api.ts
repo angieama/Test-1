@@ -1,3 +1,9 @@
+export type ApiTransport = (path: string, options: RequestInit) => Promise<Response>;
+let transport: ApiTransport = (path, options) => fetch(path, options);
+
+/** Static builds provide a browser ledger; the server app retains normal fetch. */
+export function setApiTransport(next: ApiTransport) { transport = next; }
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -21,7 +27,7 @@ export async function requestJson<T>(
   let timedOut = false;
   const timeout = setTimeout(() => { timedOut = true; cancel(); }, timeoutMs);
   try {
-    const response = await fetch(path, { ...options, cache: "no-store", signal: controller.signal });
+    const response = await transport(path, { ...options, cache: "no-store", signal: controller.signal });
     let data: unknown;
     try { data = await response.json(); }
     catch {

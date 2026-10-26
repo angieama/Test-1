@@ -39,9 +39,9 @@ function journeyDate(journey: Journey) {
   return new Intl.DateTimeFormat("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Nairobi" }).format(journey.startedAt);
 }
 
-export default function MerchantApp() {
+export default function MerchantApp({ browserOnly = false }: { browserOnly?: boolean }) {
   const { payments, journeys, selectedJourneyId, selectJourney,
-    now, loaded, refreshing, error, unauthorized, offline, loadPayments } = usePaymentLedger();
+    now, loaded, refreshing, error, unauthorized, offline, loadPayments } = usePaymentLedger(browserOnly);
   const [view, setView] = useState<View>("payments");
   const [tab, setTab] = useState<Tab>("all");
   const [amount, setAmount] = useState("");
@@ -132,7 +132,7 @@ export default function MerchantApp() {
     setModal(next);
   }
   async function mutate(path: string, method: string, body: unknown) {
-    if (!navigator.onLine) throw new Error("Reconnect before saving a payment or journey.");
+    if (!browserOnly && !navigator.onLine) throw new Error("Reconnect before saving a payment or journey.");
     try {
       return await requestJson<{ id?: string; customers?: number; passengers?: number; receipts?: number; exact?: number; underpaid?: number; topups?: number; groups?: number }>(path, {
         method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -224,8 +224,9 @@ export default function MerchantApp() {
   }
 
   return <div className="app-shell">
-    <header className="app-header"><a className="brand" href="/" aria-label="LipaVerify home"><span className="brand-mark"><CheckCheck size={23} strokeWidth={2.4} /></span><span>Lipa<span className="brand-light">Verify</span><small>PAYMENTS, CONFIRMED.</small></span></a><div className="header-actions"><span className="demo-pill">DEMO</span><button className="icon-button more-button" aria-label="Open workspace menu" onClick={() => setWorkspaceOpen(true)}><MoreHorizontal size={23} /></button></div></header>
+    <header className="app-header"><a className="brand" href={browserOnly ? "./index.html" : "/"} aria-label="LipaVerify home"><span className="brand-mark"><CheckCheck size={23} strokeWidth={2.4} /></span><span>Lipa<span className="brand-light">Verify</span><small>PAYMENTS, CONFIRMED.</small></span></a><div className="header-actions"><span className="demo-pill">DEMO</span><button className="icon-button more-button" aria-label="Open workspace menu" onClick={() => setWorkspaceOpen(true)}><MoreHorizontal size={23} /></button></div></header>
     <main className="app-content">
+      {browserOnly && <p className="browser-demo-notice">Browser demo · Records stay on this browser/device. No live M-Pesa connection.</p>}
       <div className="screen-heading"><div><p className="eyebrow">YOUR EVERYDAY CO-PILOT</p><h1>{view === "payments" ? "Verify payments" : view === "verified" ? "Verified receipts" : view === "journeys" ? "Your journeys" : view === "earnings" ? "Your earnings" : "Your fare QR"}</h1></div>{view === "payments" && <button className="add-sample" aria-label="Add sample payment" onClick={() => open({ kind: "add" })}><Plus size={22} /></button>}</div>
       {error && <div className="connection-error" role="alert"><p>{error}</p>{unauthorized ? <a href="/signin-with-chatgpt?return_to=%2F" target="_top">Sign in<ArrowRight size={14} /></a> : <button onClick={() => void loadPayments()} disabled={refreshing}>Retry</button>}</div>}
 
@@ -255,7 +256,7 @@ export default function MerchantApp() {
     <nav className="bottom-nav" aria-label="App navigation">{([["payments", Wallet, "Payments"], ["journeys", BusFront, "Journeys"], ["qr", QrCode, "Fare QR"], ["verified", ShieldCheck, "Verified"], ["earnings", BarChart3, "Earnings"]] as const).map(([key, Icon, label]) => <button key={key} className={view === key ? "active" : ""} aria-current={view === key ? "page" : undefined} onClick={() => navigate(key)}><span><Icon size={22} strokeWidth={view === key ? 2.2 : 1.7} /></span>{label}</button>)}</nav>
     {toast && <div className="toast" role="status"><span><Check size={17} /></span><p>{toast}</p><button aria-label="Dismiss notification" onClick={() => setToast("")}><X size={17} /></button></div>}
 
-    <Dialog title="Your workspace" open={workspaceOpen} onClose={() => setWorkspaceOpen(false)}><div className="workspace-identity"><span className="brand-mark"><Store size={23} /></span><div><h3>Biashara workspace</h3><p>Demo merchant · Payment verification</p></div></div><button className="menu-row" onClick={() => { setWorkspaceOpen(false); open({ kind: "help" }); }}><CircleHelp size={21} /><span>How it works</span><ChevronRight size={17} /></button><button className="menu-row" onClick={() => { setWorkspaceOpen(false); open({ kind: "add" }); }}><Plus size={21} /><span>Add a sample payment</span><ChevronRight size={17} /></button><div className="installation-row"><InstallApp /></div><p className="section-note">A sample workspace for trying out fares, journeys and receipt verification.</p></Dialog>
+    <Dialog title="Your workspace" open={workspaceOpen} onClose={() => setWorkspaceOpen(false)}><div className="workspace-identity"><span className="brand-mark"><Store size={23} /></span><div><h3>Biashara workspace</h3><p>Demo merchant · Payment verification</p></div></div><button className="menu-row" onClick={() => { setWorkspaceOpen(false); open({ kind: "help" }); }}><CircleHelp size={21} /><span>How it works</span><ChevronRight size={17} /></button><button className="menu-row" onClick={() => { setWorkspaceOpen(false); open({ kind: "add" }); }}><Plus size={21} /><span>Add a sample payment</span><ChevronRight size={17} /></button><div className="installation-row">{browserOnly ? <p className="section-note">On a hosted HTTPS page, use your browser’s “Add to Home Screen” or “Install app” option.</p> : <InstallApp />}</div><p className="section-note">A sample workspace for trying out fares, journeys and receipt verification.</p></Dialog>
 
     {modal && <Dialog title={modal.kind === "refund" ? "Record a refund" : modal.kind === "verify" ? "Confirm this payment" : modal.kind === "details" ? "Verified & locked" : modal.kind === "start" ? "Start a journey" : modal.kind === "end" ? "End this journey?" : modal.kind === "fare" ? (fareAndQR ? "Update & regenerate QR" : "Set your fare") : modal.kind === "simulate" ? "Simulate this ride" : modal.kind === "add" ? "Add sample payment" : modal.kind === "scope" ? "Choose a journey" : "A little help, on the go"} onClose={() => setModal(null)} busy={busy}>
       {["start", "end", "fare", "verify", "add", "simulate", "refund"].includes(modal.kind) && <form onSubmit={submit}>
