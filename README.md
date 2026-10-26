@@ -1,44 +1,101 @@
-# LipaVerify — a single-file webpage
+# Lipa Verify
 
-Open **index.html** in a browser. No React, package installation, development server or build step is required. The CSS, JavaScript, icons used in the interface and mock payments are embedded in the HTML.
+A mobile-first merchant payment verification app with a private hosted workspace, a durable Cloudflare D1 database, instant amount and customer search, and a rolling 30-minute window.
 
 ## Features
 
-- Mobile layout, light/dark themes and large tick-off buttons.
-- All payment amounts are shown by default within the selected time window, including underpayments. A separate Amount paid row filters All amounts, Underpaid, Exact fare or Above fare. The active fare is the comparison reference.
-- Last 15 minutes, 30 minutes, 1 hour and Today (Africa/Nairobi) filters.
-- First-name search. Receipt rows display the first name, transaction code and amount paid in KSh.
-- Permanent tick-off state in the same browser's localStorage.
-- Overview totals, manual demo payments and optional 18-second demo stream.
+- Phone-focused layout and installable PWA with first name, receipt code and payment amount.
+- Recent payment verification, underpayment warnings, and permanent receipt locks.
+- Automatic passenger counts for group payments and two-receipt top-up verification.
+- Journey sessions with fare snapshots, ride simulation and optional cash at completion.
+- Driver-set fare QR previews; live M-Pesa collection requires merchant integration.
+- Partial/full refund records, refund caps and retry protection.
+- Daily, weekly, monthly and custom-range earnings with cash, refunds and ride rankings.
+- Owner-scoped Cloudflare D1 storage, ChatGPT identity and atomic database operations.
+- Cancelable network requests, readable errors, and a full `pnpm check` command.
 
-Browser storage must be available to save fare changes and receipt claims. Local HTML file storage behavior varies by browser; serving the webpage over HTTPS is the most reliable option. These are demo locks, not atomic locks shared across devices.
+## Versions in this repository
 
-## Share the webpage
+The latest application source is in `app/`, with database schema and migrations in `db/` and `drizzle/`. This version requires a server and Cloudflare D1; GitHub Pages cannot run its backend. The current hosted application is https://lipa-verify-instant.glossygull16.chatgpt.site/ (sign-in required).
 
-Upload these static files to any HTTPS static host. Use this directory as the website root. **index.html** is the entry point. No build command is required.
+The existing root `index.html`, its static assets and Pages workflow are retained as an older standalone demo. They do not include all the features of this server-backed application. Its documentation is preserved in `docs/legacy-webpage.md`.
 
-Optional phone-install files are included: manifest.webmanifest, sw.js and the icon files. They use relative paths so the same webpage can be hosted in a subdirectory, such as a GitHub Pages project site. Installation needs HTTPS (or localhost); opening the HTML directly still runs the webpage without installation.
+## Install on a phone
 
-To use GitHub Pages, select the repository's main branch and root folder as the publishing source in Settings → Pages. The live app is also available at https://lipa-verify-mini-angi.glossygull16.chatgpt.site .
+Open the deployed HTTPS app in the phone's browser and sign in. Open the workspace menu (•••) for installation instructions.
 
-## Demo and backend boundary
+- Android/Chrome: menu → Add to Home screen or Install app → Install.
+- iPhone/Safari: Share → Add to Home Screen → Add. Keep Open as Web App enabled if offered.
 
-Payments are fictional. Updating the fare does not change an actual M-Pesa QR prompt. Real merchant authentication, authoritative fares, confirmed payment callbacks and atomic receipt claims require a backend. The optional service worker caches only the demo webpage and its install assets, never payment APIs. Offline screens cannot confirm real payments.
+Open LipaVerify from the home screen. This is a progressive web app (PWA), distributed by its URL; it does not include an APK, IPA, Play Store listing, or App Store listing. A network connection is required to load and verify payments. The service worker stores only static icons and a generic offline screen, never payment records or verification requests. Private access and saved receipt locks are shared with the web app after sign-in.
 
-Previous React implementation remains available in repository history.
+## Development
 
-## Group payments
+Use Node.js 22.13 or newer and the project lockfile. Install with `pnpm install --frozen-lockfile`, then run `pnpm dev`. The standard Sites helper configures the managed preview environment.
 
-The feed shows all amounts by default. Choose Above fare to focus on larger payments. At a fare of KSh 100, a KSh 200 receipt shows **Covers 2 people**, while KSh 250 shows **Covers 2 people · KSh 50 extra**. Only complete fares count; the merchant must confirm the actual group before ticking off a receipt. Extra money is displayed separately rather than counted as an additional person.
+The manifest declares the `DB` D1 binding. SQL migrations live in `drizzle/`. Generate changes with `pnpm db:generate`; apply migrations to the local D1 instance before testing. Production migrations are applied by Sites publication.
 
-A group receipt is ticked off once for the whole group. The claim stores the fare, number of full fares and remainder at the time of verification. A later fare change does not rewrite that claim's group count. Old claims created before this change have no recoverable fare snapshot, so their coverage label is omitted.
+## Payment integrity
 
-Overview includes demo controls for 1–4 people and an optional extra amount. Group calculations use integer cents. To check the arithmetic without installing any packages, run `node --test tests/fare-coverage.test.cjs`.
+Each claim uses a single conditional SQL insert. The receipt primary key rejects duplicate claims, checks ownership and the 30-minute expiry server-side, and records the claimant and confirmation time. Database triggers also prevent updates or deletion of claims. There is no unlock or reset operation.
 
-## Underpayments and amount filters
+Sample initialization is an atomic transaction and runs once per account. Sample receipts age normally; new sample payments can be added after the initial window expires. Preview data is separate from the production workspace.
 
-All amounts is the default. Amount paid is a separate row from the time range and claim-status tabs. The amount comparison always uses the current active fare. Summary totals and status counts follow the chosen amount and time filters.
+Values are handled as integer cents rather than floating-point amounts. Recent filtering uses `received_at > now - 30 minutes` and excludes future timestamps.
 
-Unclaimed payments below one full fare show the missing amount, for example **Underpaid · KSh 20 short** for KSh 80 paid against a KSh 100 fare. Their tick-off control is disabled so they cannot be accepted as fully paid. Top-up receipt linking is not implemented. Previously claimed receipts stay locked under their original claim, including when the fare later rises above the amount paid.
+All recent payments are included without a row cap. Verified history includes the latest 500 confirmations plus any other confirmations still in the rolling window; older database records are retained.
 
-Overview contains an Add underpaid demo button to create an example 20% below the active fare, rounded to cents. The test suite covers the default all-amounts behavior, under/exact/above comparisons and shortfall arithmetic, in addition to group fare coverage.
+## Validation
+
+`node tests/mobile-app.test.mjs` checks install metadata, icon dimensions, authenticated manifest loading, the offline fallback, and static-only caching. Phone-width browser QA covers the installation guide and receipt confirmation flow. Actual Android/iOS installation needs to be completed on a phone.
+
+`python tests/integrity.py` verifies the actual claim SQL, merchant isolation, expiry boundaries, simultaneous claims, and immutable receipts. `node --experimental-strip-types tests/amounts.test.mjs` checks exact cents and window filtering. Run `node node_modules/typescript/bin/tsc --noEmit` and `pnpm build` for the full type and production build checks.
+
+The optional `tests/integration.py` exercises the HTTP APIs on a standalone local preview; it requires direct HTTP access to that preview.
+
+## Live integration
+
+This release is a functional demo and does not receive real M-Pesa payments, read SMS, or transfer money. It is not yet an approved M-Pesa Super App mini app. A live merchant integration needs an authenticated server-side payment ingestion path, upstream receipt authenticity and unique receipt validation, production merchant authorization, and the relevant provider approval. Never treat sample receipts or browser-supplied payment details as proof of a real payment.
+
+The deployed workspace uses the platform’s private access boundary. Production APIs require the platform-provided ChatGPT user identity; local development has a separate preview owner only when the development build flag is enabled.
+
+## Journeys and fare QR
+
+Start a journey with an origin, destination and fare per passenger. New sample payments are assigned to the active journey. Existing receipts remain unassigned. Each journey retains its received total, receipt count and confirmed passenger count. Ending a journey allows the next ride to start. Recorded payment fares and journey associations cannot be changed.
+
+Passenger counts are automatically calculated as whole fares covered by each receipt (amount divided by its recorded fare), including groups of ten or more. Remainders are displayed as extra money and do not count as another passenger. A fare is required before confirmation. Fare changes apply to new receipts and new QR requests; earlier receipt fares are preserved.
+
+Fare QR codes are scannable text previews containing the route, fare, passenger count, total and request reference. They do not initiate M-Pesa payments. Payment-enabled QR generation requires an approved Safaricom Daraja merchant integration. The private workspace access policy is preserved.
+
+### Split payments / top-ups
+
+Open an unverified receipt and choose **Combine with another payment**. Select a second recent receipt from the same first name, journey and fare. Confirm both transaction codes with the customer before saving; first names alone are not an identity check. The combined total calculates covered passengers and any shortfall. Both original receipts are locked in one atomic database statement, using the existing immutable claims ledger. The shared claim reference links the receipts, and only the anchor claim contributes passenger counts, so journey totals do not count passengers twice. No schema change is needed. Both receipts must remain within the 30-minute verification window.
+
+Run `python tests/combine-payments.py` to check atomic locking, overlapping concurrent attempts and ownership/window guards.
+
+### Random ride simulation
+
+Use **Generate sample passengers** on an active journey or its Payments view. Choose 4–30 paying customers. Every batch contains exact payments, unresolved underpayments, two-receipt top-ups and group payments for up to ten people (subject to the amount limit). Names and amounts are randomized; names are unique within each batch. All receipts remain unverified, use the current journey's fare snapshot, and are inserted in a D1 transaction guarded against ended rides or fare changes. Repeating adds another batch. No real funds are moved. Test with `node --experimental-strip-types tests/ride-simulator.test.mjs`.
+
+### Earnings reports
+
+The Earnings tab reports Today, This week (Monday onward), This month, All time, and inclusive custom date ranges in Africa/Nairobi time. Server-side SQL reads the full owner-scoped payment ledger, independent of the 30-minute verification window. Reports show received, verified and unverified money; underpayments are included at the actual amount received, and split receipts each contribute their own amount once. Totals include unassigned receipts, separately disclosed. Rides are ranked by money received within the selected range, even when a ride started earlier. Reports show the top 100 rides with totals across all rides. This is gross received money, not profit.
+
+Validation: `node --experimental-strip-types tests/earnings.test.mjs` and `python tests/earnings.py`.
+
+### Refund records
+
+Use **Record refund** on any receipt for a full or partial refund. This is a demo ledger operation, not an M-Pesa transfer. Multiple partial refunds are supported up to the original amount. Immutable refund entries use request IDs for retry protection, with an atomic amount-cap check and database triggers that prevent over-refunding. Refunded unverified receipts cannot later be confirmed or combined; existing confirmations stay locked and passenger counts remain their original recorded values. For combined payments, refund each receipt separately. Earnings show gross money received, refunds by their recorded date, and net earnings; rides rank by net cash flow within the chosen dates, including refunds of older payments.
+
+Checks: `python tests/refunds.py`, `python tests/earnings.py`.
+
+### Code organization and checks
+
+- `app/hooks/use-payment-ledger.ts` owns the payment feed, selected ride, server clock, connectivity and polling. It cancels superseded requests and cleans up requests/listeners on unmount. Receipt dialogs follow the latest ledger data.
+- `lib/client-api.ts` centralizes uncached JSON requests, bounded timeouts, cancellation and readable HTTP/network errors. Mutations are never automatically retried; refund request IDs retain their existing retry protection.
+- Journey and claim-reference indexes support historical ride lookups and combined-receipt summaries without full scans of those lookup columns.
+- Run `npm run check` (or `pnpm check`) for TypeScript, client API, amounts, PWA, simulator, earnings, refund and concurrency checks. Python 3 and the project's Node version are required. Production build remains separate.
+
+### Cash at ride completion
+
+The End journey form accepts an optional cash total (zero by default, up to KSh 250,000 with exact cents). Cash and the completion timestamp are saved in one owner-scoped conditional update, so concurrent or repeated completion cannot duplicate cash. Completed cash is protected against edits by a database trigger. Ride totals show M-Pesa and cash separately. Cash contributes to received/net earnings and ride rankings on the ride completion date, while M-Pesa receipts and refunds retain their own dates. Aggregate cash does not generate fake customer receipts or confirmed passenger counts. Run `python tests/cash.py` or the full `npm run check`.
