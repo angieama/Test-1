@@ -5,7 +5,7 @@ import { generateRideSamples } from "../lib/ride-simulator.ts";
 
 export const STORAGE_KEY = "lipa-verify-browser-ledger-v2";
 type Refund = { id: string; paymentId: string; amountCents: number; refundedAt: number };
-type Ledger = { version: 2; payments: Payment[]; journeys: Journey[]; refunds: Refund[]; routes: SavedRoute[] };
+type Ledger = { version: 2; routeNamesVersion?: 1; payments: Payment[]; journeys: Journey[]; refunds: Refund[]; routes: SavedRoute[] };
 type BrowserStorage = Pick<Storage, "getItem" | "setItem">;
 
 function uuid() {
@@ -38,8 +38,8 @@ function samples(state: Ledger, journey: Journey, count: number, now: number) {
   return { customers: count, passengers: generated.reduce((n,s) => n+s.passengers,0), receipts: generated.reduce((n,s) => n+s.amounts.length,0), exact: generated.filter(s=>s.kind==="exact").length, underpaid: generated.filter(s=>s.kind==="underpaid").length, topups: generated.filter(s=>s.kind==="topup").length, groups: generated.filter(s=>s.kind==="group").length };
 }
 function seed(now: number): Ledger {
-  const state: Ledger = { version: 2, payments: [], journeys: [], refunds: [], routes: [] };
-  const ride = rawJourney("Nairobi", "Town", 10000, now-10*60000);
+  const state: Ledger = { version: 2, routeNamesVersion: 1, payments: [], journeys: [], refunds: [], routes: [] };
+  const ride = rawJourney("Kileleshwa", "Town", 10000, now-10*60000);
   const old = rawJourney("Town", "Westlands", 15000, now-86400000);
   old.endedAt = now-86400000+1800000; old.cashCents = 75000;
   state.journeys.push(ride, old);
@@ -106,6 +106,14 @@ export function createBrowserApi(storage: BrowserStorage, clock = Date.now, stor
     if(state.version!==2||!Array.isArray(state.payments)||!Array.isArray(state.journeys)||!Array.isArray(state.refunds))fail("The saved records have an unsupported format. They have not been overwritten.",500);
     if (state.routes === undefined) state.routes = [];
     if (!Array.isArray(state.routes)) fail("Saved routes could not be read. Records have not been overwritten.",500);
+    // Apply the requested route rename once, keeping receipt links and totals intact.
+    if (state.routeNamesVersion !== 1) {
+      for (const route of [...state.journeys, ...state.routes]) {
+        if (route.origin === "Nairobi" && route.destination === "Town") route.origin = "Kileleshwa";
+      }
+      state.routeNamesVersion = 1;
+      save(state);
+    }
     return state;
   };
   async function dispatch(path:string, options:RequestInit={}) {

@@ -10,8 +10,10 @@ const oldRide=data.journeys.find(j=>j.endedAt===null);
 const exact=data.payments.find(p=>p.journeyId===oldRide.id&&p.amountCents===oldRide.fareCents);
 await api(`/api/payments/${exact.id}/verify`,{});
 // Upgrade an already-existing browser ledger that predates saved routes.
-const legacy=JSON.parse(records.get(STORAGE_KEY));delete legacy.routes;records.set(STORAGE_KEY,JSON.stringify(legacy));
+const legacy=JSON.parse(records.get(STORAGE_KEY));delete legacy.routes;delete legacy.routeNamesVersion;legacy.journeys.find(j=>j.id===oldRide.id).origin='Nairobi';records.set(STORAGE_KEY,JSON.stringify(legacy));
 assert.deepEqual((await api('/api/routes')).routes,[]);
+assert.equal((await api('/api/payments')).journeys.find(j=>j.id===oldRide.id).origin,'Kileleshwa');
+assert.equal(JSON.parse(records.get(STORAGE_KEY)).routeNamesVersion,1);
 assert.equal((await api('/api/payments')).payments.find(p=>p.id===exact.id).verifiedAt,now);
 const saved=await api('/api/routes',{origin:'Nairobi',destination:'Westlands',fare:'150'});
 assert.equal((await api('/api/payments')).journeys.length,data.journeys.length,'Saving a route must not create a ride');

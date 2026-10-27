@@ -54,7 +54,7 @@ export default function MerchantApp({ browserOnly = false }: { browserOnly?: boo
   const refundRequest = useRef("");
   const [formError, setFormError] = useState("");
   const [routePresetId, setRoutePresetId] = useState("");
-  const [origin, setOrigin] = useState("Nairobi");
+  const [origin, setOrigin] = useState("Kileleshwa");
   const [destination, setDestination] = useState("Town");
   const [sampleCount, setSampleCount] = useState(12);
   const [simulationSummary, setSimulationSummary] = useState<{ journeyId: string; text: string } | null>(null);
@@ -121,7 +121,7 @@ export default function MerchantApp({ browserOnly = false }: { browserOnly?: boo
     setRoutePresetId(preset?.id ? (routes.some(route => route.id === preset.id) ? "saved:" : "ride:") + preset.id : "");
     if (next.kind === "start" || next.kind === "save-route") {
       const values = preset ?? (next.kind === "save-route" ? next.route : undefined);
-      setOrigin(values?.origin ?? "Nairobi"); setDestination(values?.destination ?? "Town");
+      setOrigin(values?.origin ?? "Kileleshwa"); setDestination(values?.destination ?? "Town");
       setFormFare(String((values?.fareCents ?? activeJourney?.fareCents ?? 10000) / 100));
     }
     setModal(next);
@@ -222,7 +222,7 @@ export default function MerchantApp({ browserOnly = false }: { browserOnly?: boo
 
       {(view === "payments" || view === "verified") && <>
         <button className="journey-strip" onClick={() => open({ kind: "scope" })}><span className="route-symbol"><Navigation size={17} /></span><span><strong>{selectedJourney ? selectedJourney.origin + " → " + selectedJourney.destination : "All payments"}</strong><small>{selectedJourney ? (selectedJourney.endedAt ? "Journey ended" : "Journey in progress") + " · KSh " + money(selectedJourney.fareCents) + " / person" : activeJourney ? "Tap to choose a journey" : "Start a journey to track a ride"}</small></span><ChevronDown size={17} /></button>
-        {!activeJourney && view === "payments" && <button className="start-journey-inline" onClick={() => open({ kind: "start" })}><Plus size={16} />Start a journey<span>Nairobi → Town, for example</span></button>}
+        {!activeJourney && view === "payments" && <button className="start-journey-inline" onClick={() => open({ kind: "start" })}><Plus size={16} />Start a journey<span>Kileleshwa → Town, for example</span></button>}
         {activeJourney && selectedJourneyId === activeJourney.id && <button className="simulate-ride-button" onClick={() => open({ kind: "simulate" })} disabled={offline}><Shuffle size={17} />Generate sample passengers<ChevronRight size={16} /></button>}
         {simulationSummary && simulationSummary.journeyId === selectedJourneyId && <div className="simulation-summary" role="status"><strong>Ride simulation added</strong><p>{simulationSummary.text}</p><button onClick={() => setSimulationSummary(null)}>Dismiss</button></div>}
         <section className="fare-card" aria-label="Filter payments by fare"><div className="fare-card-heading"><label htmlFor="expected-amount">Fare per person</label><span>All group sizes</span></div>
