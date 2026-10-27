@@ -83,3 +83,12 @@ const moneyFormatter = new Intl.NumberFormat("en-KE", { minimumFractionDigits: 2
 export function money(cents: number): string {
   return moneyFormatter.format(cents / 100);
 }
+
+export type SavedRoute = {
+  id: string;
+  origin: string;
+  destination: string;
+  fareCents: number;
+  createdAt: number;
+  updatedAt: number;
+};

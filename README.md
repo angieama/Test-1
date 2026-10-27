@@ -4,7 +4,7 @@
 
 Open **index.html** in a modern browser. The complete application JavaScript and styling are embedded in that file. No React installation, backend server, sign-in or build step is needed to run the HTML version.
 
-The HTML app includes journeys, fare changes, QR fare previews, random passengers, underpayment warnings, two-receipt top-ups, group payments, cash at ride completion, refund records and earnings by date range.
+The HTML app includes saved routes, repeating past journeys, fare changes, QR fare previews, random passengers, underpayment warnings, two-receipt top-ups, group payments, cash at ride completion, refund records and earnings by date range.
 
 Records are saved in localStorage on the same browser and device, namespaced by the hosting folder. They are not shared across phones, accounts or browsers; clearing site storage removes them. Local file storage behavior varies between browsers, so HTTPS hosting is recommended. Keep real merchant credentials and payment integrations on a server. This is a sample-money simulator, not live M-Pesa processing. The browser’s saved receipt locks are demo state and can be changed by someone with access to that browser’s storage.
 
@@ -28,3 +28,9 @@ Use Node 22.13+ and pnpm. Run `pnpm install --frozen-lockfile`, then `pnpm build
 The Cloudflare D1 application remains in `app/`, `db/`, `drizzle/`, and `worker/`. Run `pnpm dev` / `pnpm build` for that version. Its backend provides owner-scoped records and shared database locks; GitHub Pages does not execute that server code. The hosted server version is https://lipa-verify-instant.glossygull16.chatgpt.site/ (sign-in required).
 
 See `docs/server-app.md` for the original server development and integrity documentation, and `docs/legacy-webpage.md` for the earlier standalone demo documentation.
+
+## Saved routes and repeat journeys
+
+In Journeys, use **Add route** to save the starting point, destination and default fare. Use **Start ride** to prefill a new journey, adjust that ride’s fare if needed, then start. The start form also lets you pick any saved route or a recent ride. **Repeat route** on a completed ride copies only the route and fare into the form; **Save this route** keeps those details for later. Each start creates a new session ID with zero cash, receipts and passenger confirmations. Earlier receipts, cash and locks stay on the original ride. Saving or editing a template never changes a current or completed ride. You can save/edit routes while another ride is active, and start the next ride once the current one ends. Existing browser records are preserved.
+
+The combined **Update & regenerate fare QR** action has been removed. Fare editing and regular QR generation remain separate controls.

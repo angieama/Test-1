@@ -333,3 +333,28 @@ export async function recordRefund(ownerId: string, paymentId: string, body: Rec
   if (retry) return;
   throw new PaymentError("The receipt was not found or the refund exceeds its remaining refundable amount. Refresh and try again.", 409);
 }
+
+export async function listSavedRoutes(ownerId: string) {
+  return (await database().prepare(`SELECT id, origin, destination, fare_cents AS fareCents,
+    created_at AS createdAt, updated_at AS updatedAt FROM saved_routes
+    WHERE owner_id = ? ORDER BY updated_at DESC, id`).bind(ownerId).all()).results;
+}
+
+export async function saveRoute(ownerId: string, body: Record<string, unknown>, id?: string) {
+  const origin = routeName(body.origin, "starting point");
+  const destination = routeName(body.destination, "destination");
+  if (origin.toLocaleLowerCase() === destination.toLocaleLowerCase()) throw new PaymentError("Choose a different destination.");
+  const fareCents = typeof body.fare === "string" ? amountToCents(body.fare) : null;
+  if (!fareCents) throw new PaymentError("Enter a valid fare per passenger.");
+  const now = Date.now();
+  if (id) {
+    const updated = await database().prepare(`UPDATE saved_routes SET origin = ?, destination = ?, fare_cents = ?, updated_at = ?
+      WHERE id = ? AND owner_id = ? RETURNING id`).bind(origin, destination, fareCents, now, id, ownerId).first();
+    if (!updated) throw new PaymentError("This saved route was not found.", 404);
+    return id;
+  }
+  const routeId = crypto.randomUUID();
+  await database().prepare(`INSERT INTO saved_routes (id, owner_id, origin, destination, fare_cents, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(routeId, ownerId, origin, destination, fareCents, now, now).run();
+  return routeId;
+}

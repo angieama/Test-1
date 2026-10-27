@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, requestJson } from "@/lib/client-api";
-import type { Journey, Payment } from "@/lib/payment-types";
+import type { Journey, Payment, SavedRoute } from "@/lib/payment-types";
 
-type LedgerResponse = { payments: Payment[]; journeys: Journey[]; serverTime: number };
+type LedgerResponse = { payments: Payment[]; journeys: Journey[]; routes: SavedRoute[]; serverTime: number };
 
 /** Owns polling, cancellation and clock synchronization independently of the screens. */
 export function usePaymentLedger(local = false) {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [routes, setRoutes] = useState<SavedRoute[]>([]);
   const [journeys, setJourneys] = useState<Journey[]>([]);
   const [selectedJourneyId, setSelectedJourneyId] = useState("all");
   const [now, setNow] = useState(0);
@@ -38,6 +39,7 @@ export function usePaymentLedger(local = false) {
       setNow(Date.now() + offset.current);
       setPayments(data.payments);
       setJourneys(data.journeys);
+      setRoutes(data.routes ?? []);
       setError(""); setUnauthorized(false); setLoaded(true);
       if (!initialized.current) {
         initialized.current = true;
@@ -86,6 +88,6 @@ export function usePaymentLedger(local = false) {
     setSelectedJourneyId(journeyId);
   }, []);
 
-  return { payments, journeys, selectedJourneyId, selectJourney,
+  return { payments, journeys, routes, selectedJourneyId, selectJourney,
     now, loaded, refreshing, error, unauthorized, offline, loadPayments };
 }

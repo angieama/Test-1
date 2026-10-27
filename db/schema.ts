@@ -56,3 +56,13 @@ export const refunds = sqliteTable("refunds", {
   amountCents: integer("amount_cents").notNull(),
   refundedAt: integer("refunded_at").notNull(),
 }, table => [index("refunds_payment").on(table.paymentId), index("refunds_date").on(table.refundedAt)]);
+
+export const savedRoutes = sqliteTable("saved_routes", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id").notNull(),
+  origin: text("origin").notNull(),
+  destination: text("destination").notNull(),
+  fareCents: integer("fare_cents").notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+}, table => [index("saved_routes_owner_updated").on(table.ownerId, table.updatedAt)]);

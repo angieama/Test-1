@@ -1,11 +1,11 @@
 import QRCode from "qrcode";
-import { amountToCents, coverageError, firstName, isRecent, money, suggestedPassengers, WINDOW_MS, type Journey, type Payment } from "../lib/payment-types.ts";
+import { amountToCents, coverageError, firstName, isRecent, money, suggestedPassengers, WINDOW_MS, type Journey, type Payment, type SavedRoute } from "../lib/payment-types.ts";
 import { earningsBounds, type Earnings, type RideEarnings } from "../lib/earnings-types.ts";
 import { generateRideSamples } from "../lib/ride-simulator.ts";
 
 export const STORAGE_KEY = "lipa-verify-browser-ledger-v2";
 type Refund = { id: string; paymentId: string; amountCents: number; refundedAt: number };
-type Ledger = { version: 2; payments: Payment[]; journeys: Journey[]; refunds: Refund[] };
+type Ledger = { version: 2; payments: Payment[]; journeys: Journey[]; refunds: Refund[]; routes: SavedRoute[] };
 type BrowserStorage = Pick<Storage, "getItem" | "setItem">;
 
 function uuid() {
@@ -38,7 +38,7 @@ function samples(state: Ledger, journey: Journey, count: number, now: number) {
   return { customers: count, passengers: generated.reduce((n,s) => n+s.passengers,0), receipts: generated.reduce((n,s) => n+s.amounts.length,0), exact: generated.filter(s=>s.kind==="exact").length, underpaid: generated.filter(s=>s.kind==="underpaid").length, topups: generated.filter(s=>s.kind==="topup").length, groups: generated.filter(s=>s.kind==="group").length };
 }
 function seed(now: number): Ledger {
-  const state: Ledger = { version: 2, payments: [], journeys: [], refunds: [] };
+  const state: Ledger = { version: 2, payments: [], journeys: [], refunds: [], routes: [] };
   const ride = rawJourney("Nairobi", "Town", 10000, now-10*60000);
   const old = rawJourney("Town", "Westlands", 15000, now-86400000);
   old.endedAt = now-86400000+1800000; old.cashCents = 75000;
@@ -104,6 +104,8 @@ export function createBrowserApi(storage: BrowserStorage, clock = Date.now, stor
     let state:Ledger;
     try{state=JSON.parse(raw);}catch{fail("Saved records could not be read. They have not been overwritten.",500);}
     if(state.version!==2||!Array.isArray(state.payments)||!Array.isArray(state.journeys)||!Array.isArray(state.refunds))fail("The saved records have an unsupported format. They have not been overwritten.",500);
+    if (state.routes === undefined) state.routes = [];
+    if (!Array.isArray(state.routes)) fail("Saved routes could not be read. Records have not been overwritten.",500);
     return state;
   };
   async function dispatch(path:string, options:RequestInit={}) {
@@ -120,9 +122,21 @@ export function createBrowserApi(storage: BrowserStorage, clock = Date.now, stor
       let result:unknown;
       if(method==="GET"&&url.pathname==="/api/payments"){
         const journeyId=url.searchParams.get("journey");const history=new Set([...state.payments].filter(p=>p.verifiedAt!==null).sort((a,b)=>b.verifiedAt!-a.verifiedAt!).slice(0,500).map(p=>p.id));
-        result={payments:state.payments.filter(p=>isRecent(p,now)||(journeyId&&p.journeyId===journeyId)||history.has(p.id)).sort((a,b)=>b.receivedAt-a.receivedAt).map(p=>viewPayment(state,p)),journeys:state.journeys.map(j=>viewJourney(state,j)).sort((a,b)=>b.startedAt-a.startedAt),serverTime:now,demo:true};
+        result={payments:state.payments.filter(p=>isRecent(p,now)||(journeyId&&p.journeyId===journeyId)||history.has(p.id)).sort((a,b)=>b.receivedAt-a.receivedAt).map(p=>viewPayment(state,p)),journeys:state.journeys.map(j=>viewJourney(state,j)).sort((a,b)=>b.startedAt-a.startedAt),routes:state.routes,serverTime:now,demo:true};
       }else if(method==="GET"&&url.pathname==="/api/earnings"){
         result=report(state,url.searchParams.get("from")??"",url.searchParams.get("to")??"");
+      }else if(method==="GET"&&url.pathname==="/api/routes"){
+        result={routes:state.routes};
+      }else if((method==="POST"&&url.pathname==="/api/routes")||(method==="PATCH"&&/^\/api\/routes\/[^/]+$/.test(url.pathname))){
+        const origin=routeName(body.origin),destination=routeName(body.destination),fareCents=requiredAmount(body.fare);
+        if(origin.toLowerCase()===destination.toLowerCase())fail("Choose a different destination.");
+        if(method==="PATCH"){
+          const route=state.routes.find(route=>route.id===url.pathname.split("/").pop())??fail("Saved route not found.",404);
+          Object.assign(route,{origin,destination,fareCents,updatedAt:now});result={id:route.id};
+        }else{
+          const route:SavedRoute={id:uuid(),origin,destination,fareCents,createdAt:now,updatedAt:now};
+          state.routes.unshift(route);result={id:route.id};
+        }
       }else if(method==="POST"&&url.pathname==="/api/journeys"){
         if(state.journeys.some(j=>j.endedAt===null))fail("End the current journey first.",409);
         const origin=routeName(body.origin),destination=routeName(body.destination);
