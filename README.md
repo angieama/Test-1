@@ -44,3 +44,5 @@ This is a clearly labelled **local analysis prototype**, using intent matching a
 Generate sample passengers is available in the three-dot **Your workspace** menu. Start a journey first; samples are added to that active ride.
 
 New sample batches contain exactly three underpaid receipt rows: one standalone short payment and the two parts of one split fare. Remaining customers pay a full fare or for a group. This mix also applies to newly seeded browser demos; existing ride records are preserved.
+
+The standalone fare-per-person panel has been removed from Payments and Verified. Receipt coverage uses the stored receipt fare. For an unassigned receipt without a fare snapshot, enter its fare inside the verification dialog.
