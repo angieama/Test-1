@@ -7,7 +7,8 @@ export function generateRideSamples(fareCents: number, count: number, random = M
   for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
   const kinds = ["exact", "underpaid", "topup", "group"] as const;
   const result = Array.from({ length: count }, (_, i): SampleCustomer => {
-    const kind = i < 4 ? kinds[i] : kinds[Math.floor(random() * 4)];
+    // One short payment plus one split pair gives exactly three underpaid receipt rows.
+    const kind = i < 4 ? kinds[i] : random() < 0.7 ? "exact" : "group";
     const paid = Math.max(1, Math.min(fareCents - 1, Math.floor(fareCents * (0.4 + random() * 0.5))));
     const passengers = kind === "group" ? 2 + Math.floor(random() * (Math.min(10, Math.floor(25000000 / fareCents)) - 1)) : 1;
     const amounts = kind === "underpaid" ? [paid] : kind === "topup" ? [paid, fareCents - paid] : [fareCents * passengers];

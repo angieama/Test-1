@@ -8,6 +8,9 @@ for (const fare of [2, 99, 10000, 15050, 12500000]) {
     assert.equal(samples.length, count);
     assert.equal(new Set(samples.map(s => s.customer)).size, count);
     assert.equal(new Set(samples.map(s => s.kind)).size, 4);
+    assert.equal(samples.filter(s => s.kind === 'underpaid').length, 1);
+    assert.equal(samples.filter(s => s.kind === 'topup').length, 1);
+    assert.equal(samples.flatMap(s=>s.amounts).filter(a=>a<fare).length, 3, 'Exactly three receipt rows show an underpayment notice');
     for (const sample of samples) {
       assert.ok(sample.amounts.every(a => Number.isSafeInteger(a) && a >= 1 && a <= 25000000));
       const total = sample.amounts.reduce((a,b) => a+b, 0);
@@ -20,4 +23,4 @@ for (const fare of [2, 99, 10000, 15050, 12500000]) {
 }
 for (const count of [0,3,31,12.5,NaN,'12']) assert.throws(() => generateRideSamples(10000, count));
 for (const fare of [0,1,12500001,NaN,1.5]) assert.throws(() => generateRideSamples(fare,12));
-console.log('PASS: mixed batches include exact, underpaid, split top-up and group payments; integer cents, unique names, counts and transaction limits hold');
+console.log('PASS: every batch has exactly three underpaid receipt rows, one split fare, and full-fare/group payments for the rest; integer cents, unique names and transaction limits hold');
