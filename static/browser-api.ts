@@ -1,4 +1,5 @@
 import QRCode from "qrcode";
+import { buildAnalysis } from "../lib/analysis.ts";
 import { amountToCents, coverageError, firstName, isRecent, money, suggestedPassengers, WINDOW_MS, type Journey, type Payment, type SavedRoute } from "../lib/payment-types.ts";
 import { earningsBounds, type Earnings, type RideEarnings } from "../lib/earnings-types.ts";
 import { generateRideSamples } from "../lib/ride-simulator.ts";
@@ -131,6 +132,8 @@ export function createBrowserApi(storage: BrowserStorage, clock = Date.now, stor
       if(method==="GET"&&url.pathname==="/api/payments"){
         const journeyId=url.searchParams.get("journey");const history=new Set([...state.payments].filter(p=>p.verifiedAt!==null).sort((a,b)=>b.verifiedAt!-a.verifiedAt!).slice(0,500).map(p=>p.id));
         result={payments:state.payments.filter(p=>isRecent(p,now)||(journeyId&&p.journeyId===journeyId)||history.has(p.id)).sort((a,b)=>b.receivedAt-a.receivedAt).map(p=>viewPayment(state,p)),journeys:state.journeys.map(j=>viewJourney(state,j)).sort((a,b)=>b.startedAt-a.startedAt),routes:state.routes,serverTime:now,demo:true};
+      }else if(method==="GET"&&url.pathname==="/api/analysis"){
+        result=buildAnalysis(state.payments.map(p=>({...p,refundedCents:refundTotal(state,p.id)})),state.journeys,state.refunds.map(r=>({...r,journeyId:state.payments.find(p=>p.id===r.paymentId)?.journeyId??null})),url.searchParams.get("from")??"",url.searchParams.get("to")??"",now,url.searchParams.get("journey"));
       }else if(method==="GET"&&url.pathname==="/api/earnings"){
         result=report(state,url.searchParams.get("from")??"",url.searchParams.get("to")??"");
       }else if(method==="GET"&&url.pathname==="/api/routes"){

@@ -358,3 +358,23 @@ export async function saveRoute(ownerId: string, body: Record<string, unknown>, 
     VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(routeId, ownerId, origin, destination, fareCents, now, now).run();
   return routeId;
 }
+
+/** Complete owner-scoped analysis, without the recent-feed/history row limits. */
+export async function analysisReport(ownerId: string, from: string, to: string, journeyId: string | null = null) {
+  const { buildAnalysis } = await import("./analysis");
+  const { earningsBounds } = await import("./earnings-types");
+  try { earningsBounds(from, to); } catch (error) { throw new PaymentError(error instanceof Error ? error.message : "Choose valid dates.", 422); }
+  const db = database();
+  const [payments, refunds, journeys] = await db.batch([
+    db.prepare(`SELECT p.id, p.journey_id AS journeyId, p.fare_cents AS fareCents, p.amount_cents AS amountCents,
+      p.received_at AS receivedAt, c.verified_at AS verifiedAt, c.passengers,
+      COALESCE((SELECT SUM(r.amount_cents) FROM refunds r WHERE r.payment_id = p.id),0) AS refundedCents
+      FROM payments p LEFT JOIN claims c ON c.payment_id = p.id WHERE p.owner_id = ?`).bind(ownerId),
+    db.prepare(`SELECT p.journey_id AS journeyId, r.amount_cents AS amountCents, r.refunded_at AS refundedAt
+      FROM refunds r JOIN payments p ON p.id = r.payment_id WHERE p.owner_id = ?`).bind(ownerId),
+    db.prepare(`SELECT id, origin, destination, fare_cents AS fareCents, started_at AS startedAt,
+      ended_at AS endedAt, cash_cents AS cashCents FROM journeys WHERE owner_id = ?`).bind(ownerId),
+  ]);
+  try { return buildAnalysis(payments.results as import("./analysis").AnalysisPayment[], journeys.results as Journey[], refunds.results as import("./analysis").AnalysisRefund[], from, to, Date.now(), journeyId); }
+  catch (error) { throw new PaymentError(error instanceof Error ? error.message : "Couldn’t analyse those records.", 422); }
+}

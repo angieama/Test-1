@@ -1,5 +1,5 @@
 /* Browser demo only. Network-first HTML, local records remain in localStorage. */
-const CACHE='lipa-verify-html-369524171898';
+const CACHE='lipa-verify-html-74eeba4cc376';
 const ROOT=new URL('./',self.location.href).href;
 self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.add(new Request(new URL('index.html',ROOT),{cache:'reload'}));await self.skipWaiting();})()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key of await caches.keys()){if(key.startsWith('lipa-verify-html-')&&key!==CACHE)await caches.delete(key);}await self.clients.claim();})()));
